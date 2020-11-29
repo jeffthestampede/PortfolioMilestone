@@ -1,0 +1,74 @@
+---
+title: "Final Project - Avocado"
+author: "Jeffrey Kao"
+date: "12/11/2018"
+output: pdf_document
+---
+
+```{r message=FALSE}
+library(tidyverse) 
+library(knitr)
+library(gridExtra)
+library(ggthemes)
+library(data.table)
+```
+
+```{r message=FALSE, warning=FALSE}
+avocado <- read.csv("~/Documents/Syracuse/MAR653-Marketing Analytics/avocado.csv")
+avocado$year = as.factor(avocado$year)
+avocado$Date = as.Date(avocado$Date)
+avocado$month  = factor(months(avocado$Date), levels = month.name)
+
+ggplot(avocado, aes(avocado$type, avocado$AveragePrice))+
+    geom_boxplot(aes(colour = avocado$year))+
+    labs(colour = "Year", x = "Type", y ="Average Price", title = "Average price of avocado per year by avocado type")
+```
+```{r message=FALSE, warning=FALSE}
+grouped <- avocado %>% 
+    group_by(year, month, type) %>% 
+    select(year, month, type,AveragePrice) %>%
+    summarise(averagePrice = mean(AveragePrice))
+options(repr.plot.width= 12, repr.plot.height=5)
+
+ggplot(data=grouped,aes(x=month, y=averagePrice, colour=year,group = year)) +
+    labs(colour = "Year", x = "Month", y ="Average Price", title = "Average monthly prices of avocado by avocado type for each year")+
+    geom_line() + 
+    theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
+    facet_grid(. ~grouped$type)
+
+```
+```{r message=FALSE, warning=FALSE}
+grouped_region_max_organic = avocado %>% 
+  group_by(region, type) %>% 
+  select(region, type,AveragePrice) %>%
+  summarise(maxPrice = max(AveragePrice)) %>%
+  filter(type =='organic')
+grouped_region_max_organic$region <- factor(grouped_region_max_organic$region, levels= pull(arrange(grouped_region_max_organic,
+                                                                                                    (grouped_region_max_organic$maxPrice)), region))
+
+
+plot2 <- ggplot(grouped_region_max_organic, aes(x=maxPrice, y=region, label = round(maxPrice, 1)))+
+ geom_segment(aes(x = 0, y = region, xend = maxPrice, yend = region), color = "grey50")+
+  geom_point()  +
+labs(x = "Region", y ="Average Price", title = "Max. prices of avocado (Organic)")+
+  geom_text(nudge_x = 0.3)
+
+plot3 <- ggplot(grouped_region_max_conventional, aes(x=maxPrice, y=region, label = round(maxPrice, 1)))+
+ geom_segment(aes(x = 0, y = region, xend = maxPrice, yend = region), color = "grey50")+
+labs(x = "Region", y ="Average Price", title = "Max. prices of avocado (Conventional)")+
+  geom_point()  +
+  geom_text(nudge_x = 0.3)
+
+grid.arrange(plot3,plot2, ncol=2)
+```
+
+
+
+
+```{r message=FALSE, warning=FALSE}
+model <- lm(avocado$Total.Volume ~ avocado$type + avocado$Date + avocado$AveragePrice)
+
+summary(model)
+
+
+```
